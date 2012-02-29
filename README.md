@@ -7,8 +7,8 @@ Command-line parsing module that uses a syntax similar to that of GNU *getopt*.
 Requirements
 ------------
 
-You should only need a somewhat recent version of Erlang/OTP, though the module
-has only been tested with Erlang R13B.
+You should only need a somewhat recent version of Erlang/OTP. The module has
+been tested with Erlang R13B, R14B and R15B.
 
 
 Installation
@@ -28,6 +28,7 @@ Usage
 
 The *getopt* module provides four functions:
 
+``` erlang
     parse([{Name, Short, Long, ArgSpec, Help}], Args :: string() | [string()]) ->
         {ok, {Options, NonOptionArgs}} | {error, {Reason, Data}}
 
@@ -38,10 +39,12 @@ The *getopt* module provides four functions:
 
     usage([{Name, Short, Long, ArgSpec, Help}], ProgramName :: string(),
           CmdLineTail :: string(), OptionsTail :: [{string(), string}]) -> ok
+```
 
 The ``parse/2`` function receives a list of tuples with the command line option
 specifications. The type specification for the tuple is:
 
+``` erlang
     -type arg_type() :: 'atom' | 'binary' | 'boolean' | 'float' | 'integer' | 'string'.
 
     -type arg_value() :: atom() | binary() | boolean() | float() | integer() | string().
@@ -55,6 +58,7 @@ specifications. The type specification for the tuple is:
                        ArgSpec :: arg_spec(),
                        Help    :: string() | undefined
                       }.
+```
 
 The elements of the tuple are:
 
@@ -66,7 +70,9 @@ The elements of the tuple are:
 
 e.g.
 
+``` erlang
      {port, $p, "port", {integer, 5432}, "Database server port"}
+```
 
 The second parameter receives the list of arguments as passed to the ``main/1``
 function in escripts or the unparsed command line as a string.
@@ -80,8 +86,9 @@ added to the list of options. For the example given above we could get something
 like ``{port, 5432}``. The non-option arguments are just a list of strings with
 all the arguments that did not have corresponding options.
 
-e.g. For a program named ``ex.escript`` with the following option specifications:
+e.g. Given the following option specifications:
 
+``` erlang
     OptSpecList =
         [
          {host,    $h,        "host",    {string, "localhost"}, "Database server host"},
@@ -91,21 +98,29 @@ e.g. For a program named ``ex.escript`` with the following option specifications
          {verbose, $v,        "verbose", integer,               "Verbosity level"},
          {file,    undefined, undefined, string,                "Output file"}
         ].
+```
 
 And this command line:
 
+``` erlang
     Args = "-h myhost --port=1000 -x myfile.txt -vvv dummy1 dummy2"
+```
 
 Which could also be passed in the format the ``main/1`` function receives the arguments in escripts:
 
+``` erlang
     Args = ["-h", "myhost", "--port=1000", "-x", "file.txt", "-vvv", "dummy1", "dummy2"].
+```
 
 The call to ``getopt:parse/2``:
 
+``` erlang
     getopt:parse(OptSpecList, Args).
+```
 
 Will return:
 
+``` erlang
     {ok,{[{host,"myhost"},
           {port,1000},
           xml,
@@ -113,16 +128,18 @@ Will return:
           {dbname,"users"},
           {verbose,3}],
          ["dummy1","dummy2"]}}
-
+```
 
 The other functions exported by the ``getopt`` module (``usage/2``, ``usage/3``
 and ``usage/4``) are used to show the command line syntax for the program.
 For example, given the above-mentioned option specifications, the call to
 ``getopt:usage/2``:
 
+``` erlang
     getopt:usage(OptSpecList, "ex1").
+```
 
-Will show (on *stderr*):
+Will show (on *standard_error*):
 
     Usage: ex1 [-h <host>] [-p <port>] [--dbname <dbname>] [-x] [-v] <file>
 
@@ -137,7 +154,7 @@ This call to ``getopt:usage/3`` will add a string after the usage command line:
 
     getopt:usage(OptSpecList, "ex1", "[var=value ...] [command ...]").
 
-Will show (on *stderr*):
+Will show (on *standard_error*):
 
     Usage: ex1 [-h <host>] [-p <port>] [--dbname <dbname>] [-x] [-v <verbose>] <file> [var=value ...] [command ...]
 
@@ -151,11 +168,13 @@ Will show (on *stderr*):
 Whereas this call to ``getopt:usage/3`` will also add some lines to the options
 help text:
 
+``` erlang
     getopt:usage(OptSpecList, "ex1", "[var=value ...] [command ...]",
                  [{"var=value", "Variables that will affect the execution (e.g. debug=1)"},
                   {"command",   "Commands that will be executed (e.g. count)"}]).
+```
 
-Will show (on *stdout*):
+Will show (on *standard_error*):
 
     Usage: ex1 [-h <host>] [-p <port>] [--dbname <dbname>] [-x] [-v <verbose>] <file> [var=value ...] [command ...]
 
@@ -184,7 +203,7 @@ A short option can have the following syntax:
     -afoo      Single option 'a', argument "foo"
     -abc       Multiple options: 'a'; 'b'; 'c'
     -bcafoo    Multiple options: 'b'; 'c'; 'a' with argument "foo"
-    -aaa       Multiple repetitions of option 'a' (when 'a' has integer arguments)
+    -aaa       Multiple repetitions of option 'a'
 
 A long option can have the following syntax:
 
@@ -192,43 +211,136 @@ A long option can have the following syntax:
     --foo=bar  Single option 'foo', argument "bar"
     --foo bar  Single option 'foo', argument "bar"
 
-We can also have options with neither short nor long option name. In this case,
-the options will be taken according to their position in the option specification
-list passed to ``getopt:/parse2``.
-
-For example, with the following option specifications:
-
-    OptSpecList =
-        [
-         {xml,         $x,        "xml",         undefined,             "Output data as XML"},
-         {dbname,      undefined, undefined,     string,                "Database name"},
-         {output_file, undefined, undefined,     string,                "File where the data will be saved to"}
-        ].
-
-And these arguments:
-
-    Args = "-x mydb file.out dummy1 dummy1".
-
-The call to ``getopt:parse/2``:
-
-    getopt:parse(OptSpecList, Args).
-
-Will return:
-
-    {ok,{[xml,{dbname,"mydb"},{output_file,"file.out"}],
-         ["dummy1","dummy1"]}}
-
-Finally, the string ``--`` is considered an option terminator (i.e. all
-arguments after it are considered non-option arguments) and the single ``-``
-character is considered as non-option argument too.
-
 
 Argument Types
 --------------
 
 The arguments allowed for options are: *atom*; *binary*; *boolean*; *float*; *integer*; *string*.
 The ``getopt`` module checks every argument to see if it can be converted to its
-correct type. In the case of boolean arguments, the following values (in lower or
-upper case) are considered ``true``: *true*; *t*; *yes*; *y*; *on*; *enabled*; *1*.
+correct type.
 
-And these ones are considered ``false``: *false*; *f*; *no*; *n*; *off*; *disabled*; *0*.
+In the case of boolean arguments, the following values (in lower or
+upper case) are considered ``true``: *true*; *t*; *yes*; *y*; *on*; *enabled*; *1*.
+These ones are considered ``false``: *false*; *f*; *no*; *n*; *off*; *disabled*; *0*.
+
+Numeric arguments can only be negative when passed as part of an assignment expression.
+
+e.g. ``--increment=-100`` is a valid expression; whereas ``--increment -100`` is invalid
+
+
+Implicit Arguments
+------------------
+
+The arguments for options with the *boolean* and *integer* data types can sometimes
+be omitted. In those cases the value assigned to the option is *true* for *boolean*
+arguments and *1* for integer arguments.
+
+
+Multiple Repetitions
+--------------------
+
+An option can be repeated several times, in which case there will be multiple
+appearances of the option in the resulting list. The only exceptions are short
+options with integer arguments. In that particular case, each appearance of
+the short option within a single command line argument will increment the
+number that will be returned for that specific option.
+
+e.g. Given an option specification list with the following format:
+
+``` erlang
+    OptSpecList =
+        [
+         {define,  $D, "define",  string,  "Define a variable"},
+         {verbose, $v, "verbose", integer, "Verbosity level"}
+        ].
+```
+
+The following invocation:
+
+``` erlang
+    getopt:parse(OptSpecList, "-DFOO -DVAR1=VAL1 -DBAR --verbose --verbose=3 -v -vvvv dummy").
+```
+
+would return:
+
+``` erlang
+    {ok,{[{define,"FOO"}, {define,"VAR1=VAL1"}, {define,"BAR"},
+          {verbose,1}, {verbose,3}, {verbose,1}, {verbose,4}],
+         ["dummy"]}}
+```
+
+
+Positional Options
+------------------
+
+We can also have options with neither short nor long option name. In this case,
+the options will be taken according to their position in the option specification
+list passed to ``getopt:/parse2``.
+
+For example, with the following option specifications:
+
+``` erlang
+    OptSpecList =
+        [
+         {xml,         $x,        "xml",     undefined, "Output data as XML"},
+         {dbname,      undefined, undefined, string,    "Database name"},
+         {output_file, undefined, undefined, string,    "File where the data will be saved to"}
+        ].
+```
+
+This call to ``getopt:parse/2``:
+
+``` erlang
+    getopt:parse(OptSpecList, "-x mydb file.out dummy dummy").
+```
+
+Will return:
+
+``` erlang
+    {ok,{[xml,{dbname,"mydb"},{output_file,"file.out"}],
+         ["dummy","dummy"]}}
+```
+
+
+Option Terminators
+------------------
+
+The string ``--`` is considered an option terminator. This means that all the
+command-line arguments after it are considered non-option arguments and will be
+returned without being evaluated even if they follow the *getopt* syntax.
+
+e.g. This invocation using the first option specification list in the document:
+
+``` erlang
+    getopt:parse(OptSpecList, "-h myhost -p 1000 -- --dbname mydb dummy").
+```
+
+will return:
+
+``` erlang
+    {ok,{[{host,"myhost"}, {port,1000},{dbname,"users"}],
+         ["--dbname","mydb","dummy"]}}
+```
+
+Notice that the *dbname* option was assigned the value ``users`` instead of ``mydb``.
+This happens because the option terminator prevented ``getopt`` from evaluating it
+and the default value was assigned to it.
+
+
+Non-option Arguments
+--------------------
+
+The single ``-`` character is always considered as a non-option argument.
+
+e.g. This invocation using the specification list from the previous example:
+
+``` erlang
+    getopt:parse(OptSpecList, "-h myhost -p 1000 - --dbname mydb dummy").
+```
+
+will return:
+
+``` erlang
+    {ok,{[{host,"myhost"}, {port,1000}, {dbname,"mydb"}],
+         ["-","dummy"]}}
+```
